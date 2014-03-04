@@ -1,0 +1,11 @@
+{
+    "require": {
+        "symfony/finder": "v2.3.11"
+    },
+    "autoload": {
+        "psr-4": {
+            "Fbsg\\ManifestValidator\\": "src"
+        }
+    },
+    "minimum-stability": "dev"
+}
