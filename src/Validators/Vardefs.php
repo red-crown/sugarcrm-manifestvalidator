@@ -24,6 +24,6 @@ class Vardefs extends Copy
      */
     protected function checkCopyTo(SplFileInfo $to)
     {
-        return substr($to, 0, 1) == strtoupper(substr($to, 0, 1));
+        return $to->getBasename() == $to->getBasename(".php");
     }
 }

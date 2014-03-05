@@ -49,18 +49,19 @@ class ValidatorFactory
                 $classname = 'LogicHooks';
                 break;
 
-            /*
             case 'relationships':
                 $classname = 'Relationships';
+                break;
+
+            case 'layoutdefs':
+                $classname = 'Layoutdefs';
                 break;
 
             case 'beans':
                 $classname = 'Beans';
                 break;
 
-            case 'layoutdefs':
-                $classname = 'Layoutdefs';
-                break;
+            /*
 
             case 'image_dir':
                 $classname = 'Imagedir';

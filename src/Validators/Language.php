@@ -39,28 +39,12 @@ class Language extends Copy
     }
 
     /**
-     * @param SplFileInfo $from
-     *
-     * @return bool
-     */
-    protected function checkCopyFrom(SplFileInfo $from)
-    {
-        if (substr($from->getBasename(), 0, 5) == 'en_us') {
-            return parent::checkCopyFrom($from);
-        } else {
-            return false;
-        }
-    }
-
-    /**
      * @param SplFileInfo $to
      *
      * @return bool
      */
     protected function checkCopyTo(SplFileInfo $to)
     {
-        $basename = $to->getBasename();
-
-        return substr($basename, 0, 1) == strtoupper(substr($basename, 0, 1));
+        return $to->getBasename() == $to->getBasename(".php");
     }
 }

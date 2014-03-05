@@ -3,9 +3,17 @@
 namespace Fbsg\ManifestValidator\Validators;
 
 
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RecursiveRegexIterator;
+use RegexIterator;
 use SplFileInfo;
-use Symfony\Component\Finder\Finder;
 
+/**
+ * Class LogicHooks
+ *
+ * @package Fbsg\ManifestValidator\Validators
+ */
 class LogicHooks extends Validator
 {
     /**
@@ -32,15 +40,17 @@ class LogicHooks extends Validator
     private $missingKeys = [];
 
     /**
-     * @var \Symfony\Component\Finder\Finder;
+     * @var array
      */
-    private $finder;
+    private $projectFiles = [];
 
+
+    /**
+     * @param array $defs
+     */
     function __construct(array $defs)
     {
         parent::__construct($defs);
-
-        $this->finder = new Finder();
     }
 
     /**
@@ -54,9 +64,7 @@ class LogicHooks extends Validator
                 $this->errors[] = "Missing the keys " . implode(",", $this->missingKeys) . " at index $index";
             }
 
-            if ($hookClass = $this->checkClass($hook)) {
-                $this->validateClassMethods($hookClass, $hook);
-            } else {
+            if (!$this->checkClass($hook) and !empty($this->missingClasses)) {
                 $this->errors[] = "Missing LogicHook class " . implode(",", $this->missingClasses) . " at index $index";
             }
 
@@ -78,31 +86,22 @@ class LogicHooks extends Validator
     }
 
     /**
-     * @param string $hookFile
-     * @param array  $hook
-     *
-     * @return bool
+     * @return array
      */
-    private function validateClassMethods($hookFile, array $hook)
+    private function loadProjectFiles()
     {
-        $contents = file_get_contents($hookFile);
-        $contents = preg_replace('/require.+?;|\<\?php/', '', $contents);
+        if (empty($this->projectFiles)) {
+            $directory     = new RecursiveDirectoryIterator($this->rootDir);
+            $iterator      = new RecursiveIteratorIterator($directory);
+            $regexIterator = new RegexIterator($iterator, '/^.+\.php$/i', RecursiveRegexIterator::MATCH);
 
-        try {
-            eval($contents);
-
-            if (!method_exists($hook['class'], $hook['function'])) {
-                $this->errors[] = "Method {$hook['function']} doesn't exist in {$hook['class']}";
-
-                return false;
+            foreach ($regexIterator as $file) {
+                /** @var SplFileInfo $file */
+                $this->projectFiles[] = $file;
             }
-
-            return true;
-        } catch (\Exception $e) {
-            $this->errors[] = $e->getMessage();
-
-            return false;
         }
+
+        return $this->projectFiles;
     }
 
     /**
@@ -112,28 +111,76 @@ class LogicHooks extends Validator
      */
     private function checkClass(array $hook)
     {
-        $file     = new SplFileInfo($hook['file']);
-        $filename = $file->getBasename();
+        $classFile = new SplFileInfo($hook['file']);
+        $fileNames = array_map(
+            function ($file) {
+                /** @var SplFileInfo $file */
+                return $file->getBasename();
+            },
+            $this->loadProjectFiles()
+        );
 
-        $iterator = $this->finder
-            ->files()
-            ->name($filename)
-            ->in($this->rootDir);
+        if (!array_key_exists($classFile->getBasename(), array_flip($fileNames))) {
+            $this->errors[] = "Couldn't find the file for the class {$hook['class']}";
 
-        $found = [];
+            return false;
+        }
 
-        foreach ($iterator as $file) {
-            if ($file->isFile()) {
-                $found[] = $file->getRealPath();
+        $matchedFiles = array_filter(
+            $this->loadProjectFiles(),
+            function ($file) use($classFile) {
+                /** @var SplFileInfo $file */
+                return $classFile->getBasename() == $file->getBasename();
+            }
+        );
+
+        // If we find a matched class file, and it contains the proper
+        // method for the logic hook, we return true. Otherwise, we know
+        // that the logic hook is invalid.
+        foreach ($matchedFiles as $file) {
+            /** @var SplFileInfo $file */
+            if ($this->inspectClass($file->getRealPath(), $hook)) {
+
+                return true;
             }
         }
 
-        if (count($found) > 0) {
-            /** @var SplFileInfo $class */
-            return $found[0];
-        } else {
-            $this->missingClasses[] = $filename;
+        $this->errors[] = "The class {$hook['class']} in file: {$hook['file']} ".
+                          "doesn't appear to contain the method {$hook['function']}";
+
+        return false;
+    }
+
+    /**
+     * @param string $hookFile
+     * @param array  $hook
+     *
+     * @return bool
+     */
+    private function inspectClass($hookFile, array $hook)
+    {
+        $contents   = file_get_contents($hookFile);
+        $className  = $hook['class'];
+        $methodName = $hook['function'];
+        $errors     = [];
+
+        $count = preg_match('/class\s+?([\w]+?)(?:\s|$)/', $contents, $matches);
+        if ($count < 1 or $matches[$count] != $className) {
+            $errors[] = "The specified logic hook class \"{$className}\" could not be found in $hookFile";
+        }
+
+        $count = preg_match('/function\s+?('.$methodName.')\s?+\(/', $contents, $matches);
+        if ($count < 1) {
+            $errors[] = "The specified method '{$methodName}' could not be found in $hookFile";
+        }
+
+        if (!empty($errors)) {
+            //$this->errors = array_merge($this->errors, $errors);
+
             return false;
         }
+
+        return true;
     }
+
 }

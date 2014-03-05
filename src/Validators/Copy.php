@@ -72,7 +72,7 @@ class Copy extends Validator
      */
     protected function checkCopyFrom(SplFileInfo $from)
     {
-        return $from->isFile();
+        return $from->isFile() or $from->isDir();
     }
 
     /**

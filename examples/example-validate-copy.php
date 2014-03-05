@@ -1,11 +1,11 @@
 <?php
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
 use Fbsg\ManifestValidator\Exceptions\ValidationException;
 use Fbsg\ManifestValidator\ManifestValidatorService;
 
-require_once __DIR__ . '/../vendor/autoload.php';
-
-$path = '/Users/matthew/FAYBUS/oldhic/ProductionModule/src';
+$path = 'C:\Users\MatthewS\Projects\faybus-sugarsage\repo\SugarModule';
 
 $v = new ManifestValidatorService($path);
 

@@ -66,6 +66,7 @@ class ManifestValidatorService
                 continue;
             }
 
+            echo "Validating $defName ..." . PHP_EOL;
             $validation = $this->factory->make($defName, $def);
             $validation->validate();
 
